@@ -8,8 +8,8 @@ const server = http.createServer(app);
 // تمكين CORS في Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: '*', // السماح لجميع المصادر (يمكنك تحديد مصدر معين مثل 'http://127.0.0.1:5500')
-    methods: ['GET', 'POST'], // السماح بطرق HTTP المحددة
+    origin: '*', // السماح لجميع المصادر
+    methods: ['GET', 'POST'],
   },
 });
 
@@ -18,15 +18,39 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-  console.log('connection ', socket.id);
+  console.log('عميل متصل:', socket.id);
 
-  socket.on('chat message', (msg) => {
-    io.emit('chat message', socket.id+" "+ msg);
-    console.log('message: ' +socket.id+" "+ msg);
+  // طلب اسم المُرسل عند الاتصال
+  socket.emit('request sender name');
+
+  // استقبال اسم المُرسل من العميل
+  socket.on('send sender name', (senderName) => {
+    if (!senderName) {
+      socket.emit('error', 'الاسم مطلوب!');
+      return;
+    }
+    console.log(`اسم المُرسل: ${senderName}`);
+    socket.senderName = senderName; // تخزين اسم المُرسل في خاصية socket
+    socket.emit('name accepted', `مرحبًا ${senderName}!`);
+  });
+
+  // استقبال رسالة من العميل
+  socket.on('chat message', (message) => {
+    if (!socket.senderName) {
+      socket.emit('error', 'من فضلك أدخل اسمك أولاً.');
+      return;
+    }
+    if (!message) {
+      socket.emit('error', 'الرسالة لا يمكن أن تكون فارغة.');
+      return;
+    }
+
+    console.log(`رسالة من ${socket.senderName}: ${message}`);
+    io.emit('chat message', { sender: socket.senderName, message });
   });
 
   socket.on('disconnect', () => {
-    console.log('disconnect ', socket.id);
+    console.log('عميل انقطع:', socket.id);
   });
 });
 

@@ -4,43 +4,121 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>دردشة Realtime</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    #messages {
+      list-style-type: none;
+      padding: 0;
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      background-color: #fff;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    #messages li {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    #messages li:last-child {
+      border-bottom: none;
+    }
+    #chat-form {
+      display: flex;
+      margin-top: 20px;
+    }
+    #message-input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    #chat-form button {
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      margin-left: 10px;
+      cursor: pointer;
+    }
+    #chat-form button:hover {
+      background-color: #218838;
+    }
+    .error {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
   <h1>دردشة Realtime</h1>
   <ul id="messages"></ul>
   <form id="chat-form">
-    <input id="message-input" autocomplete="off" />
+    <input id="message-input" placeholder="رسالتك" autocomplete="off" />
     <button type="submit">إرسال</button>
   </form>
 
   <script src="socket.js"></script>
-    <script>
+  <script>
     const socket = io('http://localhost:3000'); // الاتصال بالخادم
 
     const form = document.getElementById('chat-form');
-    const input = document.getElementById('message-input');
+    const messageInput = document.getElementById('message-input');
     const messages = document.getElementById('messages');
 
-    // إرسال رسالة عند تقديم النموذج
+    // طلب اسم المُرسل من المستخدم
+    let senderName = prompt('من فضلك أدخل اسمك:');
+    while (!senderName) {
+      senderName = prompt('الاسم مطلوب! من فضلك أدخل اسمك:');
+    }
+
+    // إرسال اسم المُرسل إلى الخادم
+    socket.emit('send sender name', senderName);
+
+    // استقبال تأكيد الاسم من الخادم
+    socket.on('name accepted', (message) => {
+      alert(message);
+    });
+
+    // استقبال الأخطاء من الخادم
+    socket.on('error', (errorMessage) => {
+      const errorElement = document.createElement('div');
+      errorElement.className = 'error';
+      errorElement.textContent = errorMessage;
+      document.body.prepend(errorElement);
+      setTimeout(() => errorElement.remove(), 3000); // إزالة الرسالة بعد 3 ثواني
+    });
+
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      if (input.value) {
-        socket.emit('chat message', input.value); // إرسال الرسالة إلى الخادم
-        input.value = '';
+      const message = messageInput.value;
+
+      if (message) {
+        // إرسال الرسالة فقط (بدون اسم المُرسل)
+        socket.emit('chat message', message);
+        messageInput.value = ''; // مسح حقل الرسالة
       }
     });
 
-    // استقبال رسالة من الخادم
-    socket.on('chat message', (msg) => {
-     
-      if(msg.includes(socket.id)){
-      }
-      else{ 
-           const item = document.createElement('li');
-        item.textContent = msg;
-           messages.appendChild(item);
+    // استقبال الرسائل من الخادم
+    socket.on('chat message', (data) => {
+      const { sender, message } = data;
+      const item = document.createElement('li');
+      item.textContent = `${sender}: ${message}`; // عرض اسم المُرسل مع الرسالة
+      messages.appendChild(item);
 
-      }
+      // التمرير التلقائي إلى أحدث رسالة
+      messages.scrollTop = messages.scrollHeight;
     });
   </script>
 </body>
