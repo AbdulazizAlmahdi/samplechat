@@ -2,11 +2,12 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const multer = require('multer');
+const cors = require('cors');
 const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-
+app.use(cors()); // تمكين CORS في Express
 // تهيئة multer لتحميل الملفات
 const upload = multer({ dest: 'uploads/' }); // يتم حفظ الملفات في مجلد uploads
 
