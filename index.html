@@ -58,6 +58,13 @@
       color: red;
       font-weight: bold;
     }
+    .file-input {
+      margin-top: 10px;
+    }
+    .file-preview {
+      max-width: 100%;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -67,6 +74,10 @@
     <input id="message-input" placeholder="رسالتك" autocomplete="off" />
     <button type="submit">إرسال</button>
   </form>
+  <div class="file-input">
+    <input type="file" id="file-input" />
+    <button id="send-file">إرسال ملف</button>
+  </div>
 
   <script src="socket.js"></script>
   <script>
@@ -75,6 +86,8 @@
     const form = document.getElementById('chat-form');
     const messageInput = document.getElementById('message-input');
     const messages = document.getElementById('messages');
+    const fileInput = document.getElementById('file-input');
+    const sendFileButton = document.getElementById('send-file');
 
     // طلب اسم المُرسل من المستخدم
     let senderName = prompt('من فضلك أدخل اسمك:');
@@ -110,11 +123,58 @@
       }
     });
 
-    // استقبال الرسائل من الخادم
+    // إرسال ملف
+    sendFileButton.addEventListener('click', () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        alert('من فضلك اختر ملفًا أولاً.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // تحميل الملف إلى الخادم
+      fetch('http://localhost:3000/upload', {
+        method: 'POST',
+        body: formData,
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          // إرسال معلومات الملف إلى الخادم
+          socket.emit('chat file', { filename: file.name, path: data.path });
+        })
+        .catch((error) => {
+          console.error('خطأ في تحميل الملف:', error);
+        });
+    });
+
+    // استقبال الرسائل النصية من الخادم
     socket.on('chat message', (data) => {
       const { sender, message } = data;
       const item = document.createElement('li');
       item.textContent = `${sender}: ${message}`; // عرض اسم المُرسل مع الرسالة
+      messages.appendChild(item);
+
+      // التمرير التلقائي إلى أحدث رسالة
+      messages.scrollTop = messages.scrollHeight;
+    });
+
+    // استقبال الملفات من الخادم
+    socket.on('chat file', (data) => {
+      const { sender, file } = data;
+      const item = document.createElement('li');
+      item.textContent = `${sender} أرسل ملفًا: ${file.filename}`;
+
+      if (file.path) {
+        const fileLink = document.createElement('a');
+        fileLink.href = file.path;
+        fileLink.textContent = 'تحميل الملف';
+        fileLink.download = file.filename;
+        item.appendChild(document.createElement('br'));
+        item.appendChild(fileLink);
+      }
+
       messages.appendChild(item);
 
       // التمرير التلقائي إلى أحدث رسالة
